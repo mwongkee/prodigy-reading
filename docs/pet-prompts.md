@@ -15,6 +15,10 @@ Luminaut** are hand-built SVG (`src/assets/pets/Wolf.tsx`) and need no prompt.
 > All creatures are **original**. Do not reference or copy any existing game's
 > characters — style/palette/animation feel only.
 
+> Want kids to **draw** the pets by hand instead? See
+> [`docs/draw-along.md`](./draw-along.md) for step-by-step Excalidraw tutorials
+> for the six starters (also built into the app's **Draw** tab).
+
 ---
 
 ## 🔥 Flame line  (warm reds & oranges, ember sparks)

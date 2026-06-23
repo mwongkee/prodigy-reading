@@ -3,9 +3,10 @@ import { useGame } from './state/store';
 import { WorldMap } from './ui/WorldMap';
 import { Battle } from './ui/Battle';
 import { PetDen } from './ui/PetDen';
+import { DrawAlong } from './ui/DrawAlong';
 import { Dashboard } from './dashboard/Dashboard';
 
-type View = 'play' | 'pets' | 'parents';
+type View = 'play' | 'pets' | 'draw' | 'parents';
 
 export default function App() {
   const [view, setView] = useState<View>('play');
@@ -22,6 +23,9 @@ export default function App() {
           <button className={view === 'pets' ? 'active' : ''} onClick={() => setView('pets')}>
             Pets
           </button>
+          <button className={view === 'draw' ? 'active' : ''} onClick={() => setView('draw')}>
+            Draw
+          </button>
           <button className={view === 'parents' ? 'active' : ''} onClick={() => setView('parents')}>
             For Parents
           </button>
@@ -33,6 +37,8 @@ export default function App() {
           <Dashboard />
         ) : view === 'pets' ? (
           <PetDen />
+        ) : view === 'draw' ? (
+          <DrawAlong />
         ) : region ? (
           <Battle />
         ) : (

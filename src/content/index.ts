@@ -5,3 +5,4 @@ export * from './strands';
 export * from './elements';
 export * from './pets';
 export * from './enemies';
+export * from './draw-tutorials';

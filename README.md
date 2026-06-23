@@ -26,6 +26,9 @@ Early vertical slice. Working today:
   Correct answers fire the pet's moves; Heal restores HP. Difficulty slides as you play.
 - **Parent dashboard** (`src/dashboard/`) — per-strand level bands, accuracy, and
   focus-area suggestions from the live session.
+- **Draw-Along** (`src/ui/DrawAlong.tsx`, `docs/draw-along.md`) — the **Draw** tab
+  walks kids through drawing each of the six starter pets shape by shape in the
+  free tool [Excalidraw](https://excalidraw.com); the picture builds up as you step.
 
 Planned next: Supabase accounts/persistence, more strands & question types,
 Claude-graded writing prompts, richer art. See the roadmap in
@@ -52,6 +55,7 @@ npm run build    # type-check + production build
 
 ```
 docs/style-guide.md     art direction + ready-to-paste image-gen prompts
+docs/draw-along.md      kid drawing tutorials for the six starter pets (Excalidraw)
 docs/skill-catalog.md   strands -> knowledge components -> difficulty ordering
 src/engine/adaptive/    Elo rating + item selection (+ tests)
 src/content/            question schema + seed bank (+ tests)
