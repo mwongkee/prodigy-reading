@@ -1,11 +1,11 @@
 import { useGame } from '../state/store';
-import { STRANDS } from '../content';
+import { STRANDS, PETS, stageName } from '../content';
 import { Pet } from '../assets/pets/Pet';
 import { QuestionCard } from './QuestionCard';
 import { color } from './theme';
 
-/** The core answer-to-attack loop. Everything difficulty-related comes from the
- * adaptive engine via the store — this component is pure presentation. */
+/** The core answer-to-attack loop. All difficulty comes from the adaptive
+ * engine via the store — this component is pure presentation. */
 export function Battle() {
   const region = useGame((s) => s.region);
   const battle = useGame((s) => s.battle);
@@ -14,33 +14,57 @@ export function Battle() {
   const petMood = useGame((s) => s.petMood);
   const petStage = useGame((s) => s.petStage);
   const level = useGame((s) => s.level);
+  const speciesId = useGame((s) => s.speciesId);
   const answer = useGame((s) => s.answer);
   const next = useGame((s) => s.next);
   const leaveRegion = useGame((s) => s.leaveRegion);
 
   if (!region || !battle || !current) return null;
-  const meta = STRANDS[region];
+
+  const species = PETS[speciesId];
+  const petName = stageName(species, petStage);
+  const isFinale = region === 'finale';
+  const meta = isFinale ? null : STRANDS[region];
+  const regionColor = isFinale ? color('grape') : color(meta!.color);
+  const title = isFinale ? '🎭 The Puppet Master' : `${meta!.emoji} ${meta!.region}`;
   const showingResult = lastResult !== null;
 
   return (
-    <div className="battle" style={{ ['--region' as string]: color(meta.color) }}>
+    <div className="battle" style={{ ['--region' as string]: regionColor }}>
       <header className="battle-top">
         <button className="ghost" onClick={leaveRegion}>← Map</button>
-        <h2>{meta.emoji} {meta.region}</h2>
+        <h2>{title}</h2>
         <span className="lvl">Lv {level}</span>
       </header>
 
       <div className="arena">
-        <div className="combatant enemy">
-          <HpBar hp={battle.enemyHp} max={battle.enemyMaxHp} />
-          <div className="enemy-sprite">👾</div>
-          <span className="name">{battle.enemyName}</span>
+        <div className={`combatant enemy ${battle.enemy.isBoss ? 'boss' : ''}`}>
+          <HpBar hp={battle.enemyHp} max={battle.enemy.maxHp} />
+          <div className="enemy-sprite">{battle.enemy.emoji}</div>
+          <span className="name">
+            {battle.enemy.isBoss && <span className="boss-tag">BOSS</span>} {battle.enemy.name}
+          </span>
         </div>
         <div className="combatant player">
           <HpBar hp={battle.petHp} max={battle.petMaxHp} good />
-          <Pet bodyColor={meta.color} accentColor="sun" stage={petStage} mood={petMood} size={140} />
-          <span className="name">Your Pet</span>
+          <Pet
+            shape={species.shape}
+            bodyColor={species.bodyColor}
+            accentColor={species.accentColor}
+            stage={petStage}
+            mood={petMood}
+            size={150}
+          />
+          <span className="name">{petName}</span>
         </div>
+      </div>
+
+      <div className="moves-row">
+        {species.moves.map((m) => (
+          <span key={m.id} className={`move-chip ${m.kind}`}>
+            {m.emoji} {m.name}
+          </span>
+        ))}
       </div>
 
       {showingResult ? (

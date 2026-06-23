@@ -1,8 +1,11 @@
 import { color } from '../../ui/theme';
+import { Wolf } from './Wolf';
 
 export type PetMood = 'idle' | 'attack' | 'hurt' | 'happy';
 
 interface PetProps {
+  /** Which creature to render. 'wolf' = Luminex line; 'blob' = generic. */
+  shape?: 'wolf' | 'blob';
   /** Body color token or hex. Different colors = different "species". */
   bodyColor?: string;
   /** Belly/accent color token or hex. */
@@ -20,12 +23,19 @@ interface PetProps {
  * `data-mood` CSS hooks in index.css.
  */
 export function Pet({
+  shape = 'blob',
   bodyColor = 'sky',
   accentColor = 'sun',
   stage = 0,
   mood = 'idle',
   size = 160,
 }: PetProps) {
+  if (shape === 'wolf') {
+    return (
+      <Wolf bodyColor={bodyColor} accentColor={accentColor} stage={stage} mood={mood} size={size} />
+    );
+  }
+
   const body = color(bodyColor);
   const accent = color(accentColor);
   const ink = color('ink');

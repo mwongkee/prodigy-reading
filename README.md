@@ -16,8 +16,14 @@ Early vertical slice. Working today:
   zone-of-proximal-development item selection. Pure, framework-free, unit-tested.
 - **Content model + seed bank** (`src/content/`) — typed question items tagged by
   strand / knowledge-component / difficulty / type.
+- **Pets, bosses & keystones** (`src/content/pets.ts`, `enemies.ts`) — **Luminex**,
+  a frost wolf with the moves Crunch / Heal / Refrigerate / Ice Storm, who evolves
+  **Luminex → Luminite → Luminaut**. Each region is guarded by a boss (Ice Worm,
+  Gerald, Ice Dragon, and others) that drops a **Keystone**; collect all six to
+  face **The Puppet Master**, the villain controlling them.
 - **Playable battle slice** (`src/ui/`) — answer-to-attack loop wired to the
-  adaptive engine, with modular SVG pets. Difficulty visibly slides as you play.
+  adaptive engine, with hand-built modular SVG pets (the wolf evolves on screen).
+  Correct answers fire the pet's moves; Heal restores HP. Difficulty slides as you play.
 - **Parent dashboard** (`src/dashboard/`) — per-strand level bands, accuracy, and
   focus-area suggestions from the live session.
 
