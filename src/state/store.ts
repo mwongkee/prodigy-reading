@@ -63,6 +63,8 @@ interface GameState {
 
   enterRegion: (region: Region) => void;
   leaveRegion: () => void;
+  /** Switch the active pet (only if unlocked at the current level). */
+  setSpecies: (id: string) => void;
   answer: (response: unknown, opts?: { hintsUsed?: number; responseSeconds?: number }) => void;
   next: () => void;
 }
@@ -137,6 +139,11 @@ export const useGame = create<GameState>((set, get) => ({
   },
 
   leaveRegion: () => set({ region: null, current: null, battle: null, lastResult: null }),
+
+  setSpecies: (id) => {
+    const species = PETS[id];
+    if (species && get().level >= species.unlockLevel) set({ speciesId: id });
+  },
 
   answer: (response, opts) => {
     const state = get();

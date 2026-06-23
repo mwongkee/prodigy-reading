@@ -1,5 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { LUMINEX, PETS, STARTER_PET, stageName, chooseMove } from './pets';
+import {
+  LUMINEX,
+  PETS,
+  SPECIES_LIST,
+  STARTER_PET,
+  TOTAL_FORMS,
+  stageName,
+  formAt,
+  chooseMove,
+} from './pets';
+import { ELEMENTS } from './elements';
 import {
   REGION_BOSSES,
   KEYSTONES,
@@ -9,41 +19,63 @@ import {
 } from './enemies';
 import { STRAND_IDS } from '../engine/adaptive';
 
+describe('roster', () => {
+  it('has exactly 16 forms total', () => {
+    expect(TOTAL_FORMS).toBe(16);
+  });
+
+  it('gives every species a known element and unique id', () => {
+    const ids = SPECIES_LIST.map((s) => s.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const s of SPECIES_LIST) {
+      expect(ELEMENTS[s.element]).toBeDefined();
+      expect(s.stages.length).toBeGreaterThanOrEqual(2);
+      expect(s.unlockLevel).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  it('uses well-formed, unique image sources and keeps Luminex as svg/wolf', () => {
+    const srcs: string[] = [];
+    for (const s of SPECIES_LIST) {
+      for (const form of s.stages) {
+        if (form.art.kind === 'image') {
+          expect(form.art.src).toMatch(/^[a-z0-9-]+\.png$/);
+          srcs.push(form.art.src);
+        }
+      }
+    }
+    expect(new Set(srcs).size).toBe(srcs.length);
+    for (const form of LUMINEX.stages) {
+      expect(form.art).toEqual({ kind: 'svg', shape: 'wolf' });
+    }
+  });
+});
+
 describe('Luminex species', () => {
-  it('has the three evolution stages and the four named moves', () => {
-    expect(LUMINEX.stageNames).toEqual(['Luminex', 'Luminite', 'Luminaut']);
-    const moveNames = LUMINEX.moves.map((m) => m.name);
-    expect(moveNames).toEqual(
+  it('is the starter with the four named moves and three stages', () => {
+    expect(PETS[STARTER_PET]).toBe(LUMINEX);
+    expect(LUMINEX.stages.map((f) => f.name)).toEqual(['Luminex', 'Luminite', 'Luminaut']);
+    expect(LUMINEX.moves.map((m) => m.name)).toEqual(
       expect.arrayContaining(['Crunch', 'Heal', 'Refrigerate', 'Ice Storm']),
     );
   });
 
-  it('is the starter and a wolf', () => {
-    expect(PETS[STARTER_PET]).toBe(LUMINEX);
-    expect(LUMINEX.shape).toBe('wolf');
-  });
-
-  it('clamps stageName to the last stage', () => {
+  it('clamps stageName and formAt to the last stage', () => {
     expect(stageName(LUMINEX, 0)).toBe('Luminex');
-    expect(stageName(LUMINEX, 2)).toBe('Luminaut');
     expect(stageName(LUMINEX, 9)).toBe('Luminaut');
+    expect(formAt(LUMINEX, 9).name).toBe('Luminaut');
   });
 });
 
 describe('chooseMove', () => {
-  it('never heals when the pet is at full health', () => {
+  it('never heals at full health', () => {
     for (let i = 0; i < 30; i++) {
       expect(chooseMove(LUMINEX, false).kind).toBe('attack');
     }
   });
 
-  it('can heal when the pet is hurt', () => {
-    let healed = false;
-    // forced low rng -> heal branch
-    for (let i = 0; i < 5; i++) {
-      if (chooseMove(LUMINEX, true, () => 0).kind === 'heal') healed = true;
-    }
-    expect(healed).toBe(true);
+  it('can heal when hurt', () => {
+    expect(chooseMove(LUMINEX, true, () => 0).kind).toBe('heal');
   });
 });
 
@@ -51,9 +83,7 @@ describe('bosses & keystones', () => {
   it('gives every region a boss with a unique keystone', () => {
     const keystoneIds = STRAND_IDS.map((s) => REGION_BOSSES[s].keystoneId);
     expect(new Set(keystoneIds).size).toBe(STRAND_IDS.length);
-    for (const id of keystoneIds) {
-      expect(KEYSTONES[id!]).toBeDefined();
-    }
+    for (const id of keystoneIds) expect(KEYSTONES[id!]).toBeDefined();
   });
 
   it('includes the named bosses', () => {

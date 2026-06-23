@@ -73,6 +73,49 @@ a sunlit sandy shore with gentle tide pools and rounded rocks, distant soft
 hills, [STYLE SUFFIX]
 ```
 
+## Pet sprites — the locked style (for AI generation)
+
+The 16-pet roster (see `docs/pet-prompts.md`) is generated on free-tier tools in
+a **creature-collector style** inspired by the *general look* of games like
+Prodigy — **but every creature is original**. Do **not** reproduce or reference
+any existing game's named characters; we borrow only the art style, palette feel,
+and animation energy.
+
+**Target look (from the user's references):** chibi proportions (big head, small
+body), large glossy eyes with a bright sparkle, smooth cel-shading with soft
+gradients and a glossy rim-light, a soft medium outline, vibrant element-keyed
+palette, a lively 3/4 full-body standing pose, subtle elemental aura/FX.
+
+### Locked style suffix (paste after every pet subject)
+
+```
+chibi creature-collector mascot, original character, big head small body, large
+expressive glossy eyes with a sparkle highlight, smooth cel-shading, soft
+gradients, glossy rim light, clean soft outline, vibrant colors, cute and
+friendly, dynamic 3/4 full-body standing pose, subtle elemental aura, centered,
+full body in frame, plain flat background, high quality, crisp, sticker-like
+```
+
+### Negative prompt
+
+```
+text, watermark, signature, logo, copyrighted character, existing game mascot,
+realistic, photorealistic, scary, gore, blurry, low quality, extra limbs,
+deformed, cluttered background, multiple characters
+```
+
+### Spec & consistency
+
+- Output square; export **512×512 transparent PNG**. Name the file the pet's id
+  (e.g. `flickit.png`) and drop it in `src/assets/pets/generated/`.
+- For an evolution line, **keep the same seed** and reuse the base prompt, only
+  changing the size/horns/aura wording per stage, so the three forms look related.
+- Free tools: **Bing Image Creator / DALL·E**, **Leonardo.ai**, **Playground**;
+  for the most consistent results use **local Stable Diffusion (ComfyUI/A1111)**
+  with a fixed seed (+ optional style LoRA).
+- Post-process: remove the background with **`rembg`** (free), then drop the PNG
+  in. It replaces the placeholder automatically — no code change.
+
 ## Optional later: image-gen MCP
 
 For in-loop generation, an MCP server can wrap fal.ai / Replicate / Stability

@@ -1,12 +1,18 @@
 import { color } from '../../ui/theme';
 import { Wolf } from './Wolf';
+import { Placeholder } from './Placeholder';
+import { petImage } from './registry';
+import type { Art } from '../../content/pets';
+import type { ElementId } from '../../content/elements';
 
 export type PetMood = 'idle' | 'attack' | 'hurt' | 'happy';
 
 interface PetProps {
-  /** Which creature to render. 'wolf' = Luminex line; 'blob' = generic. */
-  shape?: 'wolf' | 'blob';
-  /** Body color token or hex. Different colors = different "species". */
+  /** What to render. Omit for the legacy generic blob (used in some headers). */
+  art?: Art;
+  /** Element — colors the placeholder when a sprite isn't available yet. */
+  element?: ElementId;
+  /** Body color token or hex (svg wolf + blob). */
   bodyColor?: string;
   /** Belly/accent color token or hex. */
   accentColor?: string;
@@ -17,23 +23,34 @@ interface PetProps {
 }
 
 /**
- * Modular SVG pet ("cozy creature"). Built from layered parts (body, belly,
- * face, accent) driven by props so one shape recolors and evolves into many
- * pets — see docs/style-guide.md. All vector, free, and animatable via the
- * `data-mood` CSS hooks in index.css.
+ * Renders a pet from its art descriptor: a hand-built SVG (Luminex/Wolf), a
+ * generated raster sprite, or — when no sprite has been dropped in yet — an
+ * element-tinted placeholder. With no `art` it draws the legacy generic blob.
+ * All variants share the `data-mood` CSS animation hooks in index.css.
  */
 export function Pet({
-  shape = 'blob',
+  art,
+  element = 'frost',
   bodyColor = 'sky',
   accentColor = 'sun',
   stage = 0,
   mood = 'idle',
   size = 160,
 }: PetProps) {
-  if (shape === 'wolf') {
+  if (art?.kind === 'svg' && art.shape === 'wolf') {
     return (
       <Wolf bodyColor={bodyColor} accentColor={accentColor} stage={stage} mood={mood} size={size} />
     );
+  }
+
+  if (art?.kind === 'image') {
+    const url = petImage(art.src);
+    if (url) {
+      return (
+        <img className="pet pet-img" data-mood={mood} src={url} width={size} height={size} alt="" />
+      );
+    }
+    return <Placeholder element={element} stage={stage} mood={mood} size={size} />;
   }
 
   const body = color(bodyColor);

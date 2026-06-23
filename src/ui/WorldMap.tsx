@@ -1,5 +1,5 @@
 import { useGame } from '../state/store';
-import { STRANDS, PETS, stageName, REGION_BOSSES, KEYSTONES, ALL_KEYSTONE_IDS, MINIONS_BEFORE_BOSS } from '../content';
+import { STRANDS, PETS, stageName, formAt, REGION_BOSSES, KEYSTONES, ALL_KEYSTONE_IDS, MINIONS_BEFORE_BOSS } from '../content';
 import { STRAND_IDS, bandFor } from '../engine/adaptive';
 import { Pet } from '../assets/pets/Pet';
 import { color } from './theme';
@@ -22,7 +22,8 @@ export function WorldMap() {
   return (
     <div className="map">
       <header className="map-head">
-        <Pet shape={species.shape} bodyColor={species.bodyColor} accentColor={species.accentColor}
+        <Pet art={formAt(species, petStage).art} element={species.element}
+          bodyColor={species.bodyColor} accentColor={species.accentColor}
           stage={petStage} mood="happy" size={104} />
         <div>
           <h1>ReadQuest</h1>

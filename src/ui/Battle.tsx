@@ -1,5 +1,5 @@
 import { useGame } from '../state/store';
-import { STRANDS, PETS, stageName } from '../content';
+import { STRANDS, PETS, formAt } from '../content';
 import { Pet } from '../assets/pets/Pet';
 import { QuestionCard } from './QuestionCard';
 import { color } from './theme';
@@ -22,7 +22,8 @@ export function Battle() {
   if (!region || !battle || !current) return null;
 
   const species = PETS[speciesId];
-  const petName = stageName(species, petStage);
+  const form = formAt(species, petStage);
+  const petName = form.name;
   const isFinale = region === 'finale';
   const meta = isFinale ? null : STRANDS[region];
   const regionColor = isFinale ? color('grape') : color(meta!.color);
@@ -48,7 +49,8 @@ export function Battle() {
         <div className="combatant player">
           <HpBar hp={battle.petHp} max={battle.petMaxHp} good />
           <Pet
-            shape={species.shape}
+            art={form.art}
+            element={species.element}
             bodyColor={species.bodyColor}
             accentColor={species.accentColor}
             stage={petStage}
