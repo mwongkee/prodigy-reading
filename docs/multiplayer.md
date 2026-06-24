@@ -53,26 +53,41 @@ sync, the goal is **cheapest with the least friction**:
   idle app costs ~nothing. Single-table design:
   - `PK = HH#<householdId>`, `SK = PROFILE#<profileId>` → profile meta + save.
   - `PK = HH#<householdId>`, `SK = HOUSEHOLD` → the profile index / active id.
-- **Identity (offline-first):** a generated `householdId` lives on the device and
-  keys all rows. localStorage stays the source of truth; the cloud is a
-  background mirror (last-write-wins per profile), so the app keeps working
-  offline and reads/writes stay tiny. A parent **Cognito** login can be layered
-  on later to claim a household across devices.
-- **IaC:** Terraform module under `infra/` — `aws_dynamodb_table`,
-  `aws_lambda_function` + `aws_lambda_function_url`, and a least-privilege
-  `aws_iam_role` scoped to that one table. `terraform validate` in CI; `apply`
-  is a manual, credentialed step.
+- **Identity / auth:** each kid gets a **username + password**, backed by an
+  **Amazon Cognito User Pool** (free up to 50k monthly active users → ~$0 at our
+  scale, and the cheapest managed username/password on AWS). To stay
+  COPPA-aligned (ETHICS #6), a kid login is **created by a parent** behind the
+  `ParentGate`; kids then just sign in. Each Cognito user carries a
+  `custom:householdId` attribute so a family's profiles group together for sync
+  and the parent dashboard. The Cognito `sub` is the stable `profileId`.
+  - Offline-first still holds: localStorage is the source of truth and the cloud
+    is a background mirror (last-write-wins per profile), so the app works
+    offline and signs in only to sync.
+- **Authorization:** the Lambda verifies the Cognito JWT and scopes every read/
+  write to `HH#<householdId>` from the token — a kid can only touch their own
+  household's rows.
+- **IaC:** Terraform module under `infra/` — `aws_cognito_user_pool` (+ client),
+  `aws_dynamodb_table`, `aws_lambda_function` + `aws_lambda_function_url`, and a
+  least-privilege `aws_iam_role` scoped to that one table. `terraform validate`
+  in CI; `apply` is a manual, credentialed step.
 
 ### Why this stays cheap
 
-On-demand DynamoDB + a Function URL Lambda have no fixed monthly cost — you pay
-per request and per stored item. A household is a handful of small rows synced
-occasionally, so a typical family is comfortably inside the AWS free tier.
+Cognito (50k MAU free), on-demand DynamoDB, and a Function URL Lambda all have no
+fixed monthly cost — you pay per request and per stored item, with no API Gateway
+charge. A household is a handful of small rows synced occasionally, so a typical
+family is comfortably inside the AWS free tier.
 
-### Dropping it in
+### Dropping it in (the follow-up PR)
 
-Add `createCloudRepository(householdId)` implementing `HouseholdRepository`
-(async; the store's load/switch paths become `await`-aware) or, simpler, keep
-the sync local repo as the source of truth and add a thin background syncer that
-pushes `saveSave`/`saveHousehold` writes to the Lambda and reconciles on launch.
-The UI does not change either way.
+1. **Auth UI:** add a sign-in screen (username + password → Cognito) and a
+   parent-gated "create kid login" flow. The existing `ProfilePicker` becomes
+   the post-sign-in household home.
+2. **Cloud repo:** add `createCloudRepository(token)` implementing
+   `HouseholdRepository`. Simplest path that needs **no UI change**: keep the
+   local repo as the source of truth and add a thin background syncer that
+   mirrors `saveSave`/`saveHousehold` to the Lambda and reconciles on launch
+   (last-write-wins per profile). If we'd rather read straight from the cloud,
+   the store's load/switch paths become `await`-aware instead.
+3. **Infra:** the `infra/` Terraform above — authored and `terraform validate`'d
+   in CI, `apply` run manually with credentials.
