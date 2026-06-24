@@ -39,6 +39,16 @@ cheaply, all from code (free, version-controlled, scalable):
 
 Keep pet SVGs in `src/assets/pets/`.
 
+### Parametric rig (kid-created pets)
+
+The same modular philosophy, taken to its conclusion: `Creature.tsx` is a single
+**parametric rig** that draws an entire pet from a `PetGenome`'s numbers + style
+choices (see `docs/pet-workshop.md`). It is a **first-class art source** — every
+creature it renders obeys the rules above (palette tokens, 4px ink outline, round
+joins, soft radial body, mood/stage hooks), so kid-made pets sit alongside the
+hand-built Wolf and AI sprites without looking out of place. One rig → infinite
+on-style pets, zero AI, zero per-variant drawing.
+
 ## When to use AI image generation (free-tier workflow)
 
 Use AI images for things SVG is poor at: **region background scenes, splash/

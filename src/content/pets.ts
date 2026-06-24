@@ -1,4 +1,5 @@
 import type { ElementId } from './elements';
+import type { PetGenome } from './genome';
 
 /** A pet's move. Attacks damage the foe; heals restore the pet's HP. */
 export interface Move {
@@ -12,10 +13,12 @@ export interface Move {
 
 export type PetShape = 'wolf' | 'blob';
 
-/** How a form is drawn: a hand-built SVG, or a (generated) raster sprite. */
+/** How a form is drawn: a hand-built SVG, a (generated) raster sprite, or a
+ * kid-created parametric creature described by a PetGenome (see genome.ts). */
 export type Art =
   | { kind: 'svg'; shape: PetShape }
-  | { kind: 'image'; src: string };
+  | { kind: 'image'; src: string }
+  | { kind: 'genome'; genome: PetGenome };
 
 /** One evolution stage of a species. */
 export interface PetForm {
@@ -36,6 +39,8 @@ export interface PetSpecies {
   moves: Move[];
   /** Evolution stages, easiest first. */
   stages: PetForm[];
+  /** True for kid-created creatures (built in the Pet Workshop). */
+  custom?: boolean;
 }
 
 const img = (src: string): Art => ({ kind: 'image', src });

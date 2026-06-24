@@ -232,3 +232,50 @@ button { font-family: inherit; }
 .strand-table th, .strand-table td { text-align: left; padding: 10px 8px; border-bottom: 1px solid #f0eef5; }
 .strand-table th { font-size: 13px; color: #6b6480; }
 .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; }
+
+/* pet workshop */
+.den-creations { --region: #b59be8; }
+.den-creations h3 { border-bottom-color: var(--region); }
+.ws-grid { display: grid; grid-template-columns: minmax(220px, 320px) 1fr; gap: 18px; margin-top: 8px; }
+@media (max-width: 720px) { .ws-grid { grid-template-columns: 1fr; } }
+.ws-preview { position: sticky; top: 12px; align-self: start; display: flex; flex-direction: column; gap: 12px; }
+.ws-stage {
+  background: #fff; border: 3px solid var(--region); border-radius: 24px;
+  display: flex; align-items: center; justify-content: center; min-height: 240px; padding: 12px;
+}
+.ws-preview-controls { display: flex; flex-direction: column; gap: 8px; }
+.ws-surprise { width: 100%; }
+.seg { display: inline-flex; flex-wrap: nowrap; gap: 4px; background: #f0eef5; border-radius: 999px; padding: 4px; }
+.seg.wrap { flex-wrap: wrap; border-radius: 14px; }
+.seg button {
+  border: none; background: transparent; color: var(--ink); font-weight: 800; font-size: 13px;
+  padding: 6px 12px; border-radius: 999px; cursor: pointer; text-transform: capitalize;
+}
+.seg button.on { background: var(--region); color: #fff; }
+.ws-controls { display: flex; flex-direction: column; gap: 14px; }
+.ws-card { background: #fff; border: 2px solid #eee; border-radius: 16px; padding: 14px 16px; }
+.ws-card h3 { margin: 0 0 10px; font-size: 15px; }
+.ws-field { display: flex; flex-direction: column; gap: 6px; }
+.ws-field > span { font-weight: 800; font-size: 14px; }
+.ws-name-row { display: flex; gap: 8px; }
+.ws-name-row input {
+  flex: 1; font: inherit; font-weight: 700; padding: 9px 12px; border: 2px solid #eee;
+  border-radius: 12px; background: #faf8ff;
+}
+.ws-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.ws-chip {
+  border: 2px solid var(--region); background: #fff; color: var(--ink); font-weight: 800;
+  font-size: 13px; padding: 6px 12px; border-radius: 999px; cursor: pointer;
+}
+.ws-chip.on { background: var(--region); color: #fff; }
+.ws-toggle, .ws-color { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 8px 0; flex-wrap: wrap; }
+.ws-toggle-label { font-weight: 800; font-size: 14px; min-width: 78px; }
+.ws-swatches { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ws-swatch { width: 26px; height: 26px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #ddd; cursor: pointer; padding: 0; }
+.ws-swatch.on { box-shadow: 0 0 0 3px var(--region); }
+.ws-color-input { width: 34px; height: 28px; border: none; background: none; padding: 0; cursor: pointer; }
+.ws-slider { display: flex; align-items: center; gap: 12px; margin: 8px 0; }
+.ws-slider > span { font-weight: 700; font-size: 14px; min-width: 110px; }
+.ws-slider input[type='range'] { flex: 1; accent-color: var(--region); }
+.ws-save { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding-top: 4px; }
+.ws-saved { font-weight: 800; color: #2e9e57; font-size: 14px; }

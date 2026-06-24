@@ -1,5 +1,5 @@
-import { useGame } from '../state/store';
-import { STRANDS, PETS, stageName, formAt, REGION_BOSSES, KEYSTONES, ALL_KEYSTONE_IDS, MINIONS_BEFORE_BOSS } from '../content';
+import { useGame, resolveSpecies } from '../state/store';
+import { STRANDS, stageName, formAt, REGION_BOSSES, KEYSTONES, ALL_KEYSTONE_IDS, MINIONS_BEFORE_BOSS } from '../content';
 import { STRAND_IDS, bandFor } from '../engine/adaptive';
 import { Pet } from '../assets/pets/Pet';
 import { color } from './theme';
@@ -11,12 +11,13 @@ export function WorldMap() {
   const petStage = useGame((s) => s.petStage);
   const level = useGame((s) => s.level);
   const speciesId = useGame((s) => s.speciesId);
+  const customPets = useGame((s) => s.customPets);
   const progress = useGame((s) => s.progress);
   const bossDefeated = useGame((s) => s.bossDefeated);
   const keystones = useGame((s) => s.keystones);
   const finaleWon = useGame((s) => s.finaleWon);
 
-  const species = PETS[speciesId];
+  const species = resolveSpecies(speciesId, customPets);
   const haveAllKeystones = ALL_KEYSTONE_IDS.every((k) => keystones.includes(k));
 
   return (

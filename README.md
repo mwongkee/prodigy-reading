@@ -29,6 +29,13 @@ Early vertical slice. Working today:
 - **Draw-Along** (`src/ui/DrawAlong.tsx`, `docs/draw-along.md`) — the **Draw** tab
   walks kids through drawing each of the six starter pets shape by shape in the
   free tool [Excalidraw](https://excalidraw.com); the picture builds up as you step.
+- **Pet Workshop** (`src/ui/PetWorkshop.tsx`, `src/content/genome.ts`,
+  `docs/pet-workshop.md`) — the **Create** tab lets kids build their **own playable
+  pet** parametrically: style toggles + sliders + a **Surprise me** seed (a name
+  works as a seed too). The polished SVG comes from one parametric rig
+  (`src/assets/pets/Creature.tsx`) — no AI, infinite variety, always on-style.
+  Saved creatures persist (localStorage), join the Pet Den, and battle/evolve like
+  any other pet.
 
 Planned next: Supabase accounts/persistence, more strands & question types,
 Claude-graded writing prompts, richer art. See the roadmap in
@@ -56,6 +63,7 @@ npm run build    # type-check + production build
 ```
 docs/style-guide.md     art direction + ready-to-paste image-gen prompts
 docs/draw-along.md      kid drawing tutorials for the six starter pets (Excalidraw)
+docs/pet-workshop.md    the parametric pet creator (genome model + rig + persistence)
 docs/skill-catalog.md   strands -> knowledge components -> difficulty ordering
 src/engine/adaptive/    Elo rating + item selection (+ tests)
 src/content/            question schema + seed bank (+ tests)

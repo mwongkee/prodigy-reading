@@ -4,5 +4,6 @@ export * from './bank';
 export * from './strands';
 export * from './elements';
 export * from './pets';
+export * from './genome';
 export * from './enemies';
 export * from './draw-tutorials';

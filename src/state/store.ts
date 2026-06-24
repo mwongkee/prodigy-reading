@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import {
   createLearner,
   applyAttempt,
@@ -16,6 +17,7 @@ import {
   STARTER_PET,
   stageName,
   chooseMove,
+  type PetSpecies,
   type Enemy,
   REGION_BOSSES,
   PUPPET_MASTER,
@@ -26,6 +28,15 @@ import {
 
 /** 'finale' is the Puppet Master encounter; otherwise a literacy region. */
 export type Region = StrandId | 'finale';
+
+/**
+ * Resolve a species id against the kid's creations first, then the static
+ * roster. Falls back to the starter so a stale persisted id can never crash a
+ * render. This is the single lookup that lets custom pets behave like any other.
+ */
+export function resolveSpecies(id: string, customPets: PetSpecies[]): PetSpecies {
+  return customPets.find((p) => p.id === id) ?? PETS[id] ?? PETS[STARTER_PET];
+}
 
 /** One recorded answer, used by the parent dashboard. */
 export interface SessionEntry {
@@ -46,6 +57,8 @@ interface GameState {
   learner: LearnerState;
   itemRatings: Record<string, Rating>;
   speciesId: string;
+  /** Kid-created creatures from the Pet Workshop (persisted across sessions). */
+  customPets: PetSpecies[];
   region: Region | null;
   current: Question | null;
   battle: BattleState | null;
@@ -65,6 +78,8 @@ interface GameState {
   leaveRegion: () => void;
   /** Switch the active pet (only if unlocked at the current level). */
   setSpecies: (id: string) => void;
+  /** Save a created creature and make it the active pet. */
+  addCustomPet: (species: PetSpecies) => void;
   answer: (response: unknown, opts?: { hintsUsed?: number; responseSeconds?: number }) => void;
   next: () => void;
 }
@@ -108,10 +123,13 @@ function pickQuestion(strand: StrandId, learner: LearnerState, itemRatings: Reco
   return chosen ? QUESTION_BANK.find((q) => q.id === chosen.id) ?? null : null;
 }
 
-export const useGame = create<GameState>((set, get) => ({
+export const useGame = create<GameState>()(
+  persist(
+    (set, get) => ({
   learner: createLearner(),
   itemRatings: Object.fromEntries(QUESTION_BANK.map((q) => [q.id, q.difficulty])),
   speciesId: STARTER_PET,
+  customPets: [],
   region: null,
   current: null,
   battle: null,
@@ -141,9 +159,12 @@ export const useGame = create<GameState>((set, get) => ({
   leaveRegion: () => set({ region: null, current: null, battle: null, lastResult: null }),
 
   setSpecies: (id) => {
-    const species = PETS[id];
+    const species = resolveSpecies(id, get().customPets);
     if (species && get().level >= species.unlockLevel) set({ speciesId: id });
   },
+
+  addCustomPet: (species) =>
+    set((s) => ({ customPets: [...s.customPets, species], speciesId: species.id })),
 
   answer: (response, opts) => {
     const state = get();
@@ -152,7 +173,7 @@ export const useGame = create<GameState>((set, get) => ({
     const region = state.region;
     if (!q || !battle || !region) return;
 
-    const species = PETS[state.speciesId];
+    const species = resolveSpecies(state.speciesId, state.customPets);
     const correctness = gradeResponse(q, response);
     const itemRating = state.itemRatings[q.id] ?? q.difficulty;
 
@@ -260,4 +281,11 @@ export const useGame = create<GameState>((set, get) => ({
   },
 
   next: () => set({ lastResult: null, petMood: 'idle' }),
-}));
+    }),
+    {
+      name: 'readquest.creations',
+      // Persist only the kid's creations + active pet — not volatile battle/learner state.
+      partialize: (s) => ({ customPets: s.customPets, speciesId: s.speciesId }),
+    },
+  ),
+);

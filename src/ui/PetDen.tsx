@@ -12,6 +12,7 @@ export function PetDen() {
   const level = useGame((s) => s.level);
   const speciesId = useGame((s) => s.speciesId);
   const setSpecies = useGame((s) => s.setSpecies);
+  const customPets = useGame((s) => s.customPets);
 
   return (
     <div className="den">
@@ -22,6 +23,23 @@ export function PetDen() {
           as you level up — earned by playing, never bought.
         </p>
       </header>
+
+      {customPets.length > 0 && (
+        <section className="den-element den-creations">
+          <h3>✨ Your Creations</h3>
+          <div className="den-rows">
+            {customPets.map((s) => (
+              <SpeciesRow
+                key={s.id}
+                species={s}
+                level={level}
+                active={s.id === speciesId}
+                onUse={() => setSpecies(s.id)}
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
       {ELEMENT_ORDER.map((el) => {
         const species = SPECIES_LIST.filter((s) => s.element === el);

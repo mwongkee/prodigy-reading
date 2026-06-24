@@ -1,5 +1,6 @@
 import { color } from '../../ui/theme';
 import { Wolf } from './Wolf';
+import { Creature } from './Creature';
 import { Placeholder } from './Placeholder';
 import { petImage } from './registry';
 import type { Art } from '../../content/pets';
@@ -41,6 +42,10 @@ export function Pet({
     return (
       <Wolf bodyColor={bodyColor} accentColor={accentColor} stage={stage} mood={mood} size={size} />
     );
+  }
+
+  if (art?.kind === 'genome') {
+    return <Creature genome={art.genome} stage={stage} mood={mood} size={size} />;
   }
 
   if (art?.kind === 'image') {

@@ -1,5 +1,5 @@
-import { useGame } from '../state/store';
-import { STRANDS, PETS, formAt } from '../content';
+import { useGame, resolveSpecies } from '../state/store';
+import { STRANDS, formAt } from '../content';
 import { Pet } from '../assets/pets/Pet';
 import { QuestionCard } from './QuestionCard';
 import { color } from './theme';
@@ -15,13 +15,14 @@ export function Battle() {
   const petStage = useGame((s) => s.petStage);
   const level = useGame((s) => s.level);
   const speciesId = useGame((s) => s.speciesId);
+  const customPets = useGame((s) => s.customPets);
   const answer = useGame((s) => s.answer);
   const next = useGame((s) => s.next);
   const leaveRegion = useGame((s) => s.leaveRegion);
 
   if (!region || !battle || !current) return null;
 
-  const species = PETS[speciesId];
+  const species = resolveSpecies(speciesId, customPets);
   const form = formAt(species, petStage);
   const petName = form.name;
   const isFinale = region === 'finale';
