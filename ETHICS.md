@@ -26,6 +26,10 @@ change is wrong — not the rule.
 
 - We never ask a child to pick a grade.
 - Difficulty slides to the learner automatically (see `src/engine/adaptive/`).
+  A new player may be calibrated by a short, pressure-free **placement warm-up**
+  that infers a starting level from gameplay (`src/engine/adaptive/placement.ts`)
+  — this is performance-based, never a grade prompt, and correctness is not
+  shown during the warm-up.
 - Progress is shown to kids as growth, never as "behind" or "below grade".
 - Parent-facing reading-level estimates are framed supportively.
 

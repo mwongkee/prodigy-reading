@@ -1,6 +1,7 @@
 export * from './types';
 export * from './grade';
 export * from './bank';
+export * from './warmup';
 export * from './strands';
 export * from './elements';
 export * from './pets';

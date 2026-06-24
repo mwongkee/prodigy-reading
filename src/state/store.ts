@@ -4,14 +4,18 @@ import {
   createLearner,
   applyAttempt,
   selectNextItem,
+  estimateSeedRating,
   STRAND_IDS,
+  DEFAULT_RATING,
   type LearnerState,
   type Rating,
   type StrandId,
+  type PlacementResult,
 } from '../engine/adaptive';
 import {
   QUESTION_BANK,
   gradeResponse,
+  buildWarmup,
   type Question,
   PETS,
   STARTER_PET,
@@ -73,6 +77,20 @@ interface GameState {
   lastResult: { correctness: number; message: string } | null;
   petMood: 'idle' | 'attack' | 'hurt' | 'happy';
   log: SessionEntry[];
+
+  /** Whether the one-time placement warm-up has been completed. */
+  placed: boolean;
+  /** Calibrated starting rating from the warm-up (persisted so it survives reloads). */
+  seedRating: Rating | null;
+  /** Active warm-up run, or null when not warming up. */
+  placement: { ladder: Question[]; index: number; results: PlacementResult[] } | null;
+
+  /** Build and start the placement warm-up. */
+  beginPlacement: () => void;
+  /** Record a warm-up answer; finishing seeds every strand and clears the gate. */
+  answerPlacement: (response: unknown) => void;
+  /** Skip the warm-up — seed at the neutral default and let play adapt from there. */
+  skipPlacement: () => void;
 
   enterRegion: (region: Region) => void;
   leaveRegion: () => void;
@@ -143,6 +161,38 @@ export const useGame = create<GameState>()(
   lastResult: null,
   petMood: 'idle',
   log: [],
+  placed: false,
+  seedRating: null,
+  placement: null,
+
+  beginPlacement: () =>
+    set({ placement: { ladder: buildWarmup(), index: 0, results: [] } }),
+
+  answerPlacement: (response) => {
+    const p = get().placement;
+    if (!p) return;
+    const q = p.ladder[p.index];
+    const correctness = gradeResponse(q, response);
+    const results: PlacementResult[] = [
+      ...p.results,
+      { difficulty: q.difficulty, correct: correctness >= 0.5 },
+    ];
+    const nextIndex = p.index + 1;
+    if (nextIndex >= p.ladder.length) {
+      const seed = estimateSeedRating(results);
+      set({ learner: createLearner(seed), seedRating: seed, placed: true, placement: null });
+    } else {
+      set({ placement: { ...p, index: nextIndex, results } });
+    }
+  },
+
+  skipPlacement: () =>
+    set({
+      learner: createLearner(DEFAULT_RATING),
+      seedRating: DEFAULT_RATING,
+      placed: true,
+      placement: null,
+    }),
 
   enterRegion: (region) => {
     const s = get();
@@ -284,8 +334,22 @@ export const useGame = create<GameState>()(
     }),
     {
       name: 'readquest.creations',
-      // Persist only the kid's creations + active pet — not volatile battle/learner state.
-      partialize: (s) => ({ customPets: s.customPets, speciesId: s.speciesId }),
+      // Persist the kid's creations + active pet, plus the one-time placement
+      // result (so the warm-up isn't repeated and the calibrated seed sticks).
+      // Volatile battle/learner drift is intentionally not persisted.
+      partialize: (s) => ({
+        customPets: s.customPets,
+        speciesId: s.speciesId,
+        placed: s.placed,
+        seedRating: s.seedRating,
+      }),
+      // The learner itself isn't persisted, so re-seed it from the saved
+      // placement rating on reload to honor the warm-up across sessions.
+      onRehydrateStorage: () => (state) => {
+        if (state && state.seedRating != null) {
+          state.learner = createLearner(state.seedRating);
+        }
+      },
     },
   ),
 );

@@ -5,6 +5,7 @@ import { Battle } from './ui/Battle';
 import { PetDen } from './ui/PetDen';
 import { DrawAlong } from './ui/DrawAlong';
 import { PetWorkshop } from './ui/PetWorkshop';
+import { Warmup } from './ui/Warmup';
 import { Dashboard } from './dashboard/Dashboard';
 
 type View = 'play' | 'pets' | 'create' | 'draw' | 'parents';
@@ -12,6 +13,10 @@ type View = 'play' | 'pets' | 'create' | 'draw' | 'parents';
 export default function App() {
   const [view, setView] = useState<View>('play');
   const region = useGame((s) => s.region);
+  const placed = useGame((s) => s.placed);
+
+  // First launch: calibrate difficulty through a short warm-up before the game.
+  if (!placed) return <Warmup />;
 
   return (
     <div className="app">

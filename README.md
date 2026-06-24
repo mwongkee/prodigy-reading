@@ -13,7 +13,9 @@ monetization** that learning games are criticized for. See [`ETHICS.md`](./ETHIC
 Early vertical slice. Working today:
 
 - **Adaptive engine** (`src/engine/adaptive/`) — Elo-style per-strand rating +
-  zone-of-proximal-development item selection. Pure, framework-free, unit-tested.
+  zone-of-proximal-development item selection, plus a first-launch **placement
+  warm-up** that calibrates the starting level from gameplay (never a grade
+  prompt). Pure, framework-free, unit-tested.
 - **Content model + question bank** (`src/content/`) — ~180 typed question items
   tagged by strand / grade (1-3) / knowledge-component / difficulty / type, with
   roughly ten items per strand per grade so the adaptive selector always has
