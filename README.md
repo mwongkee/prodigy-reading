@@ -14,8 +14,10 @@ Early vertical slice. Working today:
 
 - **Adaptive engine** (`src/engine/adaptive/`) — Elo-style per-strand rating +
   zone-of-proximal-development item selection. Pure, framework-free, unit-tested.
-- **Content model + seed bank** (`src/content/`) — typed question items tagged by
-  strand / knowledge-component / difficulty / type.
+- **Content model + question bank** (`src/content/`) — ~180 typed question items
+  tagged by strand / grade (1-3) / knowledge-component / difficulty / type, with
+  roughly ten items per strand per grade so the adaptive selector always has
+  somewhere to slide.
 - **Pets, bosses & keystones** (`src/content/pets.ts`, `enemies.ts`) — **Luminex**,
   a frost wolf with the moves Crunch / Heal / Refrigerate / Ice Storm, who evolves
   **Luminex → Luminite → Luminaut**. Each region is guarded by a boss (Ice Worm,

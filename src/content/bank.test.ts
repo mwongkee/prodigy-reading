@@ -2,6 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { QUESTION_BANK } from './bank';
 import { gradeResponse } from './grade';
 import { STRANDS } from './strands';
+import { GRADE_BANDS, type Grade } from './types';
+import { STRAND_IDS } from '../engine/adaptive/types';
+
+const GRADES: Grade[] = [1, 2, 3];
 
 describe('QUESTION_BANK integrity', () => {
   it('has unique ids', () => {
@@ -18,6 +22,15 @@ describe('QUESTION_BANK integrity', () => {
     }
   });
 
+  it('tags every item with a valid grade (1-3) inside that grade\'s band', () => {
+    for (const q of QUESTION_BANK) {
+      expect(GRADES).toContain(q.grade);
+      const [lo, hi] = GRADE_BANDS[q.grade];
+      expect(q.difficulty).toBeGreaterThanOrEqual(lo);
+      expect(q.difficulty).toBeLessThanOrEqual(hi);
+    }
+  });
+
   it('has well-formed multiple-choice answers', () => {
     for (const q of QUESTION_BANK) {
       if (q.type === 'multiple-choice') {
@@ -31,6 +44,20 @@ describe('QUESTION_BANK integrity', () => {
   it('covers all six strands', () => {
     const covered = new Set(QUESTION_BANK.map((q) => q.strand));
     expect(covered.size).toBe(Object.keys(STRANDS).length);
+  });
+
+  it('has a healthy number of items in every strand × grade bucket', () => {
+    for (const strand of STRAND_IDS) {
+      for (const grade of GRADES) {
+        const count = QUESTION_BANK.filter(
+          (q) => q.strand === strand && q.grade === grade,
+        ).length;
+        expect(
+          count,
+          `expected several items for ${strand} grade ${grade}, found ${count}`,
+        ).toBeGreaterThanOrEqual(8);
+      }
+    }
   });
 });
 
