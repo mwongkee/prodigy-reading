@@ -20,6 +20,11 @@ Early vertical slice. Working today:
   tagged by strand / grade (1-3) / knowledge-component / difficulty / type, with
   roughly ten items per strand per grade so the adaptive selector always has
   somewhere to slide.
+- **Multi-player** (`src/state/storage.ts`) — a parent-owned household holds
+  several kid profiles, each with independent ratings, progress, and pets.
+  Persistence runs through a `HouseholdRepository` seam (localStorage today) so a
+  DynamoDB sync layer can drop in without UI changes. See
+  [docs/multiplayer.md](docs/multiplayer.md).
 - **Pets, bosses & keystones** (`src/content/pets.ts`, `enemies.ts`) — **Luminex**,
   a frost wolf with the moves Crunch / Heal / Refrigerate / Ice Storm, who evolves
   **Luminex → Luminite → Luminaut**. Each region is guarded by a boss (Ice Worm,

@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import {
   createLearner,
   applyAttempt,
@@ -29,6 +28,15 @@ import {
   ALL_KEYSTONE_IDS,
   randomMinion,
 } from '../content';
+import {
+  createLocalStorageRepository,
+  newId,
+  type PlayerSave,
+  type ProfileMeta,
+  type SessionEntry,
+} from './storage';
+
+export type { SessionEntry } from './storage';
 
 /** 'finale' is the Puppet Master encounter; otherwise a literacy region. */
 export type Region = StrandId | 'finale';
@@ -42,14 +50,6 @@ export function resolveSpecies(id: string, customPets: PetSpecies[]): PetSpecies
   return customPets.find((p) => p.id === id) ?? PETS[id] ?? PETS[STARTER_PET];
 }
 
-/** One recorded answer, used by the parent dashboard. */
-export interface SessionEntry {
-  strand: StrandId;
-  correctness: number;
-  ratingAfter: Rating;
-  at: number;
-}
-
 interface BattleState {
   enemy: Enemy;
   enemyHp: number;
@@ -58,10 +58,19 @@ interface BattleState {
 }
 
 interface GameState {
+  // ---- household / multi-player ----
+  /** All kid profiles in this household (parent-owned). */
+  profiles: ProfileMeta[];
+  /** The profile currently being played, or null while at the picker. */
+  activeProfileId: string | null;
+  /** Transient: force the player picker even when a profile is active. */
+  showPicker: boolean;
+
+  // ---- active profile's game state ----
   learner: LearnerState;
   itemRatings: Record<string, Rating>;
   speciesId: string;
-  /** Kid-created creatures from the Pet Workshop (persisted across sessions). */
+  /** Kid-created creatures from the Pet Workshop (persisted per profile). */
   customPets: PetSpecies[];
   region: Region | null;
   current: Question | null;
@@ -85,18 +94,25 @@ interface GameState {
   /** Active warm-up run, or null when not warming up. */
   placement: { ladder: Question[]; index: number; results: PlacementResult[] } | null;
 
-  /** Build and start the placement warm-up. */
+  // ---- profile actions (management is parent-gated in the UI) ----
+  createProfile: (name: string) => void;
+  selectProfile: (id: string) => void;
+  deleteProfile: (id: string) => void;
+  renameProfile: (id: string, name: string) => void;
+  /** Park the current player and show the picker (does not delete anything). */
+  openPicker: () => void;
+  /** Return to the active player from the picker. */
+  closePicker: () => void;
+
+  // ---- placement warm-up ----
   beginPlacement: () => void;
-  /** Record a warm-up answer; finishing seeds every strand and clears the gate. */
   answerPlacement: (response: unknown) => void;
-  /** Skip the warm-up — seed at the neutral default and let play adapt from there. */
   skipPlacement: () => void;
 
+  // ---- core loop ----
   enterRegion: (region: Region) => void;
   leaveRegion: () => void;
-  /** Switch the active pet (only if unlocked at the current level). */
   setSpecies: (id: string) => void;
-  /** Save a created creature and make it the active pet. */
   addCustomPet: (species: PetSpecies) => void;
   answer: (response: unknown, opts?: { hintsUsed?: number; responseSeconds?: number }) => void;
   next: () => void;
@@ -110,6 +126,87 @@ const zeroProgress = () =>
   Object.fromEntries(STRAND_IDS.map((s) => [s, 0])) as Record<StrandId, number>;
 const noBossesDefeated = () =>
   Object.fromEntries(STRAND_IDS.map((s) => [s, false])) as Record<StrandId, boolean>;
+
+const freshItemRatings = () =>
+  Object.fromEntries(QUESTION_BANK.map((q) => [q.id, q.difficulty]));
+
+/** A brand-new profile's save: fresh ratings, no progress, warm-up pending. */
+function freshSave(): PlayerSave {
+  return {
+    learner: createLearner(),
+    seedRating: null,
+    placed: false,
+    customPets: [],
+    speciesId: STARTER_PET,
+    xp: 0,
+    level: 1,
+    petStage: 0,
+    progress: zeroProgress(),
+    bossDefeated: noBossesDefeated(),
+    keystones: [],
+    finaleWon: false,
+    log: [],
+  };
+}
+
+/** Snapshot the savable slice of state for persistence. */
+function saveFromState(s: GameState): PlayerSave {
+  return {
+    learner: s.learner,
+    seedRating: s.seedRating,
+    placed: s.placed,
+    customPets: s.customPets,
+    speciesId: s.speciesId,
+    xp: s.xp,
+    level: s.level,
+    petStage: s.petStage,
+    progress: s.progress,
+    bossDefeated: s.bossDefeated,
+    keystones: s.keystones,
+    finaleWon: s.finaleWon,
+    log: s.log,
+  };
+}
+
+/**
+ * Turn a (possibly partial/legacy) save into a loadable state slice. Missing
+ * fields fall back to fresh defaults, and a save without a per-strand learner
+ * (the pre-warm-up format) is re-seeded from its placement rating.
+ */
+type GameSlice = Pick<
+  GameState,
+  | 'learner' | 'seedRating' | 'placed' | 'customPets' | 'speciesId'
+  | 'xp' | 'level' | 'petStage' | 'progress' | 'bossDefeated'
+  | 'keystones' | 'finaleWon' | 'log' | 'itemRatings'
+  | 'region' | 'current' | 'battle' | 'lastResult' | 'petMood' | 'placement'
+>;
+
+function hydrateSlice(save: Partial<PlayerSave>): GameSlice {
+  const base = freshSave();
+  return {
+    learner: save.learner ?? createLearner(save.seedRating ?? DEFAULT_RATING),
+    seedRating: save.seedRating ?? base.seedRating,
+    placed: save.placed ?? base.placed,
+    customPets: save.customPets ?? base.customPets,
+    speciesId: save.speciesId ?? base.speciesId,
+    xp: save.xp ?? base.xp,
+    level: save.level ?? base.level,
+    petStage: save.petStage ?? base.petStage,
+    progress: save.progress ?? base.progress,
+    bossDefeated: save.bossDefeated ?? base.bossDefeated,
+    keystones: save.keystones ?? base.keystones,
+    finaleWon: save.finaleWon ?? base.finaleWon,
+    log: save.log ?? base.log,
+    itemRatings: freshItemRatings(),
+    // Volatile session bits always start clean.
+    region: null,
+    current: null,
+    battle: null,
+    lastResult: null,
+    petMood: 'idle',
+    placement: null,
+  };
+}
 
 /** Resolve which strand to draw a question from for a region. */
 function strandFor(region: Region): StrandId {
@@ -141,29 +238,69 @@ function pickQuestion(strand: StrandId, learner: LearnerState, itemRatings: Reco
   return chosen ? QUESTION_BANK.find((q) => q.id === chosen.id) ?? null : null;
 }
 
-export const useGame = create<GameState>()(
-  persist(
-    (set, get) => ({
-  learner: createLearner(),
-  itemRatings: Object.fromEntries(QUESTION_BANK.map((q) => [q.id, q.difficulty])),
-  speciesId: STARTER_PET,
-  customPets: [],
-  region: null,
-  current: null,
-  battle: null,
-  xp: 0,
-  level: 1,
-  petStage: 0,
-  progress: zeroProgress(),
-  bossDefeated: noBossesDefeated(),
-  keystones: [],
-  finaleWon: false,
-  lastResult: null,
-  petMood: 'idle',
-  log: [],
-  placed: false,
-  seedRating: null,
-  placement: null,
+// ---- persistence seam (localStorage today; swappable for a cloud sync) ----
+const repo = createLocalStorageRepository();
+const bootHousehold = repo.loadHousehold();
+const bootActiveId = bootHousehold.activeProfileId;
+const bootSave =
+  bootActiveId != null ? repo.loadSave(bootActiveId) ?? freshSave() : freshSave();
+
+export const useGame = create<GameState>((set, get) => ({
+  profiles: bootHousehold.profiles,
+  activeProfileId: bootActiveId,
+  showPicker: false,
+  ...hydrateSlice(bootSave),
+
+  createProfile: (name) => {
+    const id = newId();
+    const now = Date.now();
+    const meta: ProfileMeta = {
+      id,
+      name: name.trim() || `Player ${get().profiles.length + 1}`,
+      speciesId: STARTER_PET,
+      createdAt: now,
+      lastPlayedAt: now,
+    };
+    const profiles = [...get().profiles, meta];
+    const save = freshSave();
+    repo.saveSave(id, save);
+    repo.saveHousehold({ profiles, activeProfileId: id });
+    set({ profiles, activeProfileId: id, showPicker: false, ...hydrateSlice(save) });
+  },
+
+  selectProfile: (id) => {
+    if (!get().profiles.some((p) => p.id === id)) return;
+    const save = repo.loadSave(id) ?? freshSave();
+    const profiles = get().profiles.map((p) =>
+      p.id === id ? { ...p, lastPlayedAt: Date.now() } : p,
+    );
+    repo.saveHousehold({ profiles, activeProfileId: id });
+    set({ profiles, activeProfileId: id, showPicker: false, ...hydrateSlice(save) });
+  },
+
+  deleteProfile: (id) => {
+    repo.deleteSave(id);
+    const profiles = get().profiles.filter((p) => p.id !== id);
+    const wasActive = get().activeProfileId === id;
+    const activeProfileId = wasActive ? null : get().activeProfileId;
+    repo.saveHousehold({ profiles, activeProfileId });
+    if (wasActive) {
+      set({ profiles, activeProfileId: null, showPicker: false, ...hydrateSlice(freshSave()) });
+    } else {
+      set({ profiles });
+    }
+  },
+
+  renameProfile: (id, name) => {
+    const clean = name.trim();
+    if (!clean) return;
+    const profiles = get().profiles.map((p) => (p.id === id ? { ...p, name: clean } : p));
+    repo.saveHousehold({ profiles, activeProfileId: get().activeProfileId });
+    set({ profiles });
+  },
+
+  openPicker: () => set({ showPicker: true, region: null, current: null, battle: null, lastResult: null }),
+  closePicker: () => set({ showPicker: false }),
 
   beginPlacement: () =>
     set({ placement: { ladder: buildWarmup(), index: 0, results: [] } }),
@@ -331,25 +468,29 @@ export const useGame = create<GameState>()(
   },
 
   next: () => set({ lastResult: null, petMood: 'idle' }),
-    }),
-    {
-      name: 'readquest.creations',
-      // Persist the kid's creations + active pet, plus the one-time placement
-      // result (so the warm-up isn't repeated and the calibrated seed sticks).
-      // Volatile battle/learner drift is intentionally not persisted.
-      partialize: (s) => ({
-        customPets: s.customPets,
-        speciesId: s.speciesId,
-        placed: s.placed,
-        seedRating: s.seedRating,
-      }),
-      // The learner itself isn't persisted, so re-seed it from the saved
-      // placement rating on reload to honor the warm-up across sessions.
-      onRehydrateStorage: () => (state) => {
-        if (state && state.seedRating != null) {
-          state.learner = createLearner(state.seedRating);
-        }
-      },
-    },
-  ),
-);
+}));
+
+// ---- autosave: persist the active profile whenever its savable state changes ----
+const SAVABLE_KEYS = [
+  'learner', 'seedRating', 'placed', 'customPets', 'speciesId',
+  'xp', 'level', 'petStage', 'progress', 'bossDefeated',
+  'keystones', 'finaleWon', 'log',
+] as const;
+
+function savableChanged(a: GameState, b: GameState): boolean {
+  return SAVABLE_KEYS.some((k) => a[k] !== b[k]);
+}
+
+useGame.subscribe((s, prev) => {
+  const id = s.activeProfileId;
+  if (!id) return;
+  if (!savableChanged(s, prev)) return;
+  repo.saveSave(id, saveFromState(s));
+  // Keep the picker avatar in sync when the active pet changes.
+  const meta = s.profiles.find((p) => p.id === id);
+  if (meta && meta.speciesId !== s.speciesId) {
+    const profiles = s.profiles.map((p) => (p.id === id ? { ...p, speciesId: s.speciesId } : p));
+    repo.saveHousehold({ profiles, activeProfileId: id });
+    useGame.setState({ profiles });
+  }
+});

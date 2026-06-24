@@ -6,6 +6,7 @@ import { PetDen } from './ui/PetDen';
 import { DrawAlong } from './ui/DrawAlong';
 import { PetWorkshop } from './ui/PetWorkshop';
 import { Warmup } from './ui/Warmup';
+import { ProfilePicker } from './ui/ProfilePicker';
 import { Dashboard } from './dashboard/Dashboard';
 
 type View = 'play' | 'pets' | 'create' | 'draw' | 'parents';
@@ -14,8 +15,17 @@ export default function App() {
   const [view, setView] = useState<View>('play');
   const region = useGame((s) => s.region);
   const placed = useGame((s) => s.placed);
+  const activeProfileId = useGame((s) => s.activeProfileId);
+  const showPicker = useGame((s) => s.showPicker);
+  const activeName = useGame(
+    (s) => s.profiles.find((p) => p.id === s.activeProfileId)?.name,
+  );
+  const openPicker = useGame((s) => s.openPicker);
 
-  // First launch: calibrate difficulty through a short warm-up before the game.
+  // No active player (first run or all removed) or an explicit switch: pick first.
+  if (!activeProfileId || showPicker) return <ProfilePicker />;
+
+  // New player: calibrate difficulty through a short warm-up before the game.
   if (!placed) return <Warmup />;
 
   return (
@@ -37,6 +47,9 @@ export default function App() {
           </button>
           <button className={view === 'parents' ? 'active' : ''} onClick={() => setView('parents')}>
             For Parents
+          </button>
+          <button className="who" onClick={openPicker} title="Switch player">
+            👤 {activeName ?? 'Player'}
           </button>
         </div>
       </nav>

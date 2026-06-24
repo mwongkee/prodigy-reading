@@ -41,7 +41,8 @@ change is wrong — not the rule.
 ## 6. Privacy first (COPPA / FERPA mindset)
 
 - Collect the minimum data needed to teach and to report to parents.
-- Parental consent gates child accounts.
+- Parental consent gates child accounts. Creating, renaming, or removing a kid
+  profile is parent-gated (`src/ui/ParentGate.tsx`); choosing who plays is open.
 - No selling or sharing of children's data; no behavioral ad profiling.
 - Parents can export and delete their child's data at any time.
 
@@ -62,3 +63,4 @@ models are all acceptable. Manipulative monetization is not.
 - [ ] No grade-selection prompt; difficulty is adaptive.
 - [ ] No child-facing "behind/below grade" language.
 - [ ] Data collection is minimal; export & delete work; consent is gated.
+- [ ] Profile create/rename/delete is parent-gated; picking a player is open.
