@@ -3,6 +3,7 @@ import { useGame, resolveSpecies } from '../state/store';
 import { formAt } from '../content';
 import { Pet } from '../assets/pets/Pet';
 import { ParentGate } from './ParentGate';
+import { SignIn } from './SignIn';
 
 /**
  * Player picker / household home. Choosing a player is kid-facing and open;
@@ -16,15 +17,19 @@ export function ProfilePicker() {
   const deleteProfile = useGame((s) => s.deleteProfile);
   const renameProfile = useGame((s) => s.renameProfile);
   const closePicker = useGame((s) => s.closePicker);
+  const session = useGame((s) => s.session);
+  const signOut = useGame((s) => s.signOut);
 
-  const [gate, setGate] = useState<null | 'add' | 'manage'>(null);
+  const [gate, setGate] = useState<null | 'add' | 'manage' | 'login'>(null);
   const [adding, setAdding] = useState(false);
   const [managing, setManaging] = useState(false);
+  const [auth, setAuth] = useState<null | 'signin' | 'create'>(null);
   const [name, setName] = useState('');
 
   function passGate() {
     if (gate === 'add') setAdding(true);
     if (gate === 'manage') setManaging(true);
+    if (gate === 'login') setAuth('create');
     setGate(null);
   }
 
@@ -136,6 +141,27 @@ export function ProfilePicker() {
             </button>
           )}
         </div>
+
+        <div className="picker-sync">
+          {session ? (
+            <span className="muted small">
+              ☁️ Synced as <strong>{session.username}</strong>
+              <button className="link" onClick={() => void signOut()}>
+                Sign out
+              </button>
+            </span>
+          ) : (
+            <span className="muted small">
+              <button className="link" onClick={() => setAuth('signin')}>
+                Sign in to sync
+              </button>
+              {' · '}
+              <button className="link" onClick={() => setGate('login')}>
+                Create a synced login
+              </button>
+            </span>
+          )}
+        </div>
       </div>
 
       {gate && (
@@ -143,12 +169,16 @@ export function ProfilePicker() {
           prompt={
             gate === 'add'
               ? 'Adding a new player is a grown-up step.'
-              : 'Managing players is a grown-up step.'
+              : gate === 'login'
+                ? 'Creating a synced login is a grown-up step.'
+                : 'Managing players is a grown-up step.'
           }
           onPass={passGate}
           onCancel={() => setGate(null)}
         />
       )}
+
+      {auth && <SignIn mode={auth} onClose={() => setAuth(null)} />}
     </div>
   );
 }

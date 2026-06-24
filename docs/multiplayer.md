@@ -41,10 +41,14 @@ interface HouseholdRepository {
 
 Keys: `readquest.household.v1`, `readquest.profile.v1.<id>`.
 
-## Planned cloud path (DynamoDB + Terraform)
+## Cloud path (DynamoDB + Cognito + Terraform)
 
-Not built yet — scope of the current iteration is client-only. When we add
-sync, the goal is **cheapest with the least friction**:
+Implemented and **offline-first**: localStorage is always the synchronous source
+of truth. When the Cognito pool is configured (four `VITE_*` env vars present,
+see below) the app runs in **cloud mode** — writes also mirror to DynamoDB and a
+sign-in pulls a kid's saves. With no env it stays fully offline; there is no
+other toggle, so an un-provisioned build can never half-connect. The goal was
+**cheapest with the least friction**:
 
 - **Compute:** a single AWS **Lambda Function URL** (no API Gateway → no
   per-request gateway cost), Node/TypeScript handler. One function, a couple of
@@ -78,16 +82,41 @@ fixed monthly cost — you pay per request and per stored item, with no API Gate
 charge. A household is a handful of small rows synced occasionally, so a typical
 family is comfortably inside the AWS free tier.
 
-### Dropping it in (the follow-up PR)
+### How it's wired
 
-1. **Auth UI:** add a sign-in screen (username + password → Cognito) and a
-   parent-gated "create kid login" flow. The existing `ProfilePicker` becomes
-   the post-sign-in household home.
-2. **Cloud repo:** add `createCloudRepository(token)` implementing
-   `HouseholdRepository`. Simplest path that needs **no UI change**: keep the
-   local repo as the source of truth and add a thin background syncer that
-   mirrors `saveSave`/`saveHousehold` to the Lambda and reconciles on launch
-   (last-write-wins per profile). If we'd rather read straight from the cloud,
-   the store's load/switch paths become `await`-aware instead.
-3. **Infra:** the `infra/` Terraform above — authored and `terraform validate`'d
-   in CI, `apply` run manually with credentials.
+- **Auth** (`src/auth/`): one `AuthProvider` interface, two implementations
+  chosen by `createAuthProvider()`:
+  - `createLocalAuth` — offline stand-in; PBKDF2-hashed credentials in
+    localStorage. The app (and a kid's username/password) works with no backend.
+  - `createCognitoAuth` — Cognito over plain `fetch` (no AWS SDK): public
+    `SignUp` + `InitiateAuth (USER_PASSWORD_AUTH)` only, so the browser needs
+    just the app client id. The IdToken's `sub` is the profile id and
+    `custom:householdId` is the sync key.
+- **Sign-in is identity, not a gate:** a session's `profileId` *is* a local
+  `ProfileMeta.id`, so signing in adopts/creates that profile and selects it.
+  Plain "Add player" still makes offline-only profiles; "Create a synced login"
+  is parent-gated (`ParentGate` → `SignIn`, COPPA).
+- **Cloud repo** (`src/state/cloudRepository.ts`): `withCloudSync(local, sync)`
+  keeps every write synchronous on local **and** mirrors it fire-and-forget to
+  the Lambda; `reconcile()` pulls the cloud snapshot and merges it into local
+  (best-effort last-write-wins per profile by `lastPlayedAt`). The store calls
+  `reconcile()` on sign-in and boot, then re-hydrates. **No UI goes async**, and
+  an offline/erroring cloud never breaks the local app.
+- **Infra** (`infra/`): the Terraform above — Cognito pool + client + PreSignUp
+  auto-confirm Lambda, on-demand DynamoDB, sync Lambda + Function URL, and a
+  least-privilege IAM role. `terraform validate` in CI; `apply` is manual.
+
+### Switching on cloud mode
+
+After `terraform apply`, `terraform output -json vite_env` emits exactly these
+four — drop them into `.env`:
+
+```
+VITE_AWS_REGION
+VITE_COGNITO_USER_POOL_ID
+VITE_COGNITO_CLIENT_ID
+VITE_SYNC_API_URL
+```
+
+`readCloudConfig()` returns null unless **all four** are set, so partial config
+never half-activates.

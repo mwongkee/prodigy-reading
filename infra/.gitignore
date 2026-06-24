@@ -1,0 +1,9 @@
+# Terraform working dirs / state / built lambda zips — never commit these.
+.terraform/
+.terraform.lock.hcl
+build/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!example.tfvars
+crash.log

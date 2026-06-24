@@ -31,12 +31,19 @@ import {
 import {
   createLocalStorageRepository,
   newId,
+  type HouseholdRepository,
   type PlayerSave,
   type ProfileMeta,
   type SessionEntry,
 } from './storage';
+import { createAuthProvider, AuthError, type AuthSession } from '../auth';
+import { readCloudConfig } from '../auth/config';
+import { createHttpCloudSync, withCloudSync, type SyncedRepository } from './cloudRepository';
 
 export type { SessionEntry } from './storage';
+
+/** Result the sign-in UI branches on. */
+export type AuthResult = { ok: true } | { ok: false; code: AuthError['code']; message: string };
 
 /** 'finale' is the Puppet Master encounter; otherwise a literacy region. */
 export type Region = StrandId | 'finale';
@@ -65,6 +72,8 @@ interface GameState {
   activeProfileId: string | null;
   /** Transient: force the player picker even when a profile is active. */
   showPicker: boolean;
+  /** Cloud-sync session (username/password). null when offline or signed out. */
+  session: AuthSession | null;
 
   // ---- active profile's game state ----
   learner: LearnerState;
@@ -103,6 +112,14 @@ interface GameState {
   openPicker: () => void;
   /** Return to the active player from the picker. */
   closePicker: () => void;
+
+  // ---- cloud auth (username/password; parent-gated in the UI) ----
+  /** Create a synced login and a matching profile. Resolves to a typed result. */
+  signUp: (username: string, password: string, displayName?: string) => Promise<AuthResult>;
+  /** Sign in an existing kid and pull their saves. */
+  signIn: (username: string, password: string) => Promise<AuthResult>;
+  /** Sign out of cloud sync (local profiles stay on the device). */
+  signOut: () => Promise<void>;
 
   // ---- placement warm-up ----
   beginPlacement: () => void;
@@ -238,17 +255,33 @@ function pickQuestion(strand: StrandId, learner: LearnerState, itemRatings: Reco
   return chosen ? QUESTION_BANK.find((q) => q.id === chosen.id) ?? null : null;
 }
 
-// ---- persistence seam (localStorage today; swappable for a cloud sync) ----
-const repo = createLocalStorageRepository();
+// ---- persistence seam + auth ----
+// localStorage is always the synchronous source of truth. When the Cognito pool
+// is configured (env present), writes are *also* mirrored to the cloud and a
+// reconcile pulls a kid's saves on sign-in. With no env, this is a pure local
+// repo and the app is fully offline — identical behavior to before.
+const auth = createAuthProvider();
+const cloudCfg = readCloudConfig();
+const localRepo = createLocalStorageRepository();
+const syncedRepo: SyncedRepository | null = cloudCfg
+  ? withCloudSync(
+      localRepo,
+      createHttpCloudSync({ apiUrl: cloudCfg.apiUrl, getToken: () => auth.currentSession()?.token ?? null }),
+    )
+  : null;
+const repo: HouseholdRepository = syncedRepo ?? localRepo;
+
 const bootHousehold = repo.loadHousehold();
 const bootActiveId = bootHousehold.activeProfileId;
 const bootSave =
   bootActiveId != null ? repo.loadSave(bootActiveId) ?? freshSave() : freshSave();
+const bootSession = auth.currentSession();
 
 export const useGame = create<GameState>((set, get) => ({
   profiles: bootHousehold.profiles,
   activeProfileId: bootActiveId,
   showPicker: false,
+  session: bootSession,
   ...hydrateSlice(bootSave),
 
   createProfile: (name) => {
@@ -301,6 +334,33 @@ export const useGame = create<GameState>((set, get) => ({
 
   openPicker: () => set({ showPicker: true, region: null, current: null, battle: null, lastResult: null }),
   closePicker: () => set({ showPicker: false }),
+
+  signUp: async (username, password, displayName) => {
+    try {
+      // Siblings on a device join the active session's household; first kid mints one.
+      const householdId = get().session?.householdId;
+      const session = await auth.createLogin({ username, password, displayName, householdId });
+      applySession(session, displayName?.trim() || username.trim());
+      return { ok: true };
+    } catch (e) {
+      return authResult(e);
+    }
+  },
+
+  signIn: async (username, password) => {
+    try {
+      const session = await auth.signIn(username, password);
+      applySession(session, username.trim());
+      return { ok: true };
+    } catch (e) {
+      return authResult(e);
+    }
+  },
+
+  signOut: async () => {
+    await auth.signOut();
+    set({ session: null });
+  },
 
   beginPlacement: () =>
     set({ placement: { ladder: buildWarmup(), index: 0, results: [] } }),
@@ -469,6 +529,61 @@ export const useGame = create<GameState>((set, get) => ({
 
   next: () => set({ lastResult: null, petMood: 'idle' }),
 }));
+
+// ---- auth helpers (hoisted; called by the signUp/signIn actions) ----
+
+/** Turn an auth failure into the typed result the UI branches on. */
+function authResult(e: unknown): AuthResult {
+  if (e instanceof AuthError) return { ok: false, code: e.code, message: e.message };
+  return { ok: false, code: 'unknown', message: 'Something went wrong. Try again.' };
+}
+
+/**
+ * Adopt a freshly-authenticated session: ensure a local profile keyed by the
+ * session's `profileId` exists (so cloud `sub` === local profile id), make it
+ * active, then kick a background reconcile to pull the kid's cloud saves.
+ */
+function applySession(session: AuthSession, fallbackName: string): void {
+  const now = Date.now();
+  const id = session.profileId;
+  const existing = useGame.getState().profiles;
+  const profiles = existing.some((p) => p.id === id)
+    ? existing.map((p) =>
+        p.id === id ? { ...p, username: session.username, lastPlayedAt: now } : p,
+      )
+    : [
+        ...existing,
+        {
+          id,
+          name: fallbackName || 'Player',
+          username: session.username,
+          speciesId: STARTER_PET,
+          createdAt: now,
+          lastPlayedAt: now,
+        } satisfies ProfileMeta,
+      ];
+
+  // A brand-new login has no save yet; reconcile may replace it from the cloud.
+  const save = repo.loadSave(id) ?? freshSave();
+  repo.saveSave(id, save);
+  repo.saveHousehold({ profiles, activeProfileId: id });
+  useGame.setState({ profiles, activeProfileId: id, session, showPicker: false, ...hydrateSlice(save) });
+  void reconcileThenRefresh();
+}
+
+/** After a cloud pull changes local storage, re-hydrate the visible state. */
+async function reconcileThenRefresh(): Promise<void> {
+  if (!syncedRepo) return;
+  const changed = await syncedRepo.reconcile();
+  if (!changed) return;
+  const hh = repo.loadHousehold();
+  const id = useGame.getState().activeProfileId;
+  const save = id ? repo.loadSave(id) ?? freshSave() : freshSave();
+  useGame.setState({ profiles: hh.profiles, ...(id ? hydrateSlice(save) : {}) });
+}
+
+// On boot with an existing session, pull saves in the background.
+if (syncedRepo && bootSession) void reconcileThenRefresh();
 
 // ---- autosave: persist the active profile whenever its savable state changes ----
 const SAVABLE_KEYS = [

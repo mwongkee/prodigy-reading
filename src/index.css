@@ -334,6 +334,13 @@ button { font-family: inherit; }
 .tiny { font-size: 12px; padding: 3px 8px; }
 .danger { color: #c4452f; }
 .picker-foot { display: flex; gap: 12px; justify-content: center; margin-top: 22px; }
+.picker-sync { text-align: center; margin-top: 14px; }
+.picker-sync strong { color: #4b4560; }
+button.link {
+  background: none; border: none; padding: 0; margin: 0 0 0 6px;
+  color: #6a5ae0; font: inherit; font-size: 12px; cursor: pointer; text-decoration: underline;
+}
+button.link:hover { color: #4a3ad0; }
 
 .modal-backdrop {
   position: fixed; inset: 0; background: rgba(20,16,40,0.45);

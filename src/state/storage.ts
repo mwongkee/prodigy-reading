@@ -42,6 +42,8 @@ export interface ProfileMeta {
   name: string;
   /** Active pet id — drives the avatar on the picker. */
   speciesId: string;
+  /** Cloud-sync login handle, when this profile has one. Absent for offline-only profiles. */
+  username?: string;
   createdAt: number;
   lastPlayedAt: number;
 }
